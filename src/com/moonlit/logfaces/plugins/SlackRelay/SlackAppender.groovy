@@ -35,90 +35,90 @@ import com.google.gson.GsonBuilder
  * For detailed information about slack web hooks visit https://slack.com
  */
 class SlackAppender implements LogFacesPlugin{
-	private Properties config;
-	private String DEFAULT_URL = "https://hooks.slack.com/services/my/web/hook";
-	private String DEFAULT_CHANNEL = "#lfs";
-	private HttpClient client;
+   private Properties config;
+   private String DEFAULT_URL = "https://hooks.slack.com/services/my/web/hook";
+   private String DEFAULT_CHANNEL = "#lfs";
+   private HttpClient client;
 
-	public SlackAppender() {
-		config = new Properties();
-		config.setProperty("slack.url", DEFAULT_URL);
-		config.setProperty("slack.channel", DEFAULT_CHANNEL);
+   public SlackAppender() {
+      config = new Properties();
+      config.setProperty("slack.url", DEFAULT_URL);
+      config.setProperty("slack.channel", DEFAULT_CHANNEL);
 
-		try {
-			InputStream is = getClass().getResourceAsStream("/config.properties");
-			config.load(is);
-		}
-		catch(Exception e) {
-			// rely on defaults
-		}
+      try {
+         InputStream is = getClass().getResourceAsStream("/config.properties");
+         config.load(is);
+      }
+      catch(Exception e) {
+         // rely on defaults
+      }
 
-		SSLContext sslctx = new SSLContextBuilder().loadTrustMaterial(null, new TrustStrategy() {
-					@Override
-					public boolean isTrusted(X509Certificate[] arg0, String arg1) throws java.security.cert.CertificateException {
-						return true;
-					}
-				}).build();
+      SSLContext sslctx = new SSLContextBuilder().loadTrustMaterial(null, new TrustStrategy() {
+               @Override
+               public boolean isTrusted(X509Certificate[] arg0, String arg1) throws java.security.cert.CertificateException {
+                  return true;
+               }
+            }).build();
 
-		client = HttpClients.custom()
-				.setSSLContext(sslctx)
-				.setSSLHostnameVerifier(new NoopHostnameVerifier())
-				.build();
-	}
+      client = HttpClients.custom()
+                          .setSSLContext(sslctx)
+                          .setSSLHostnameVerifier(new NoopHostnameVerifier())
+                          .build();
+   }
 
-	@Override
-	public String getName() {
-		return "Slack relay";
-	}
+   @Override
+   public String getName() {
+      return "Slack relay";
+   }
 
-	@Override
-	public List<String> getArgs() {
-		return Lists.newArrayList("url", "channel");
-	}
+   @Override
+   public List<String> getArgs() {
+      return Lists.newArrayList("url", "channel");
+   }
 
-	@Override
-	public Object validate(Map<String, String> args) {
-		if(args == null) {
-			args = Maps.newHashMap();
-			args.put("url", config.getOrDefault("slack.url", DEFAULT_URL));
-			args.put("channel", config.getOrDefault("slack.channel", DEFAULT_CHANNEL));
-		}
+   @Override
+   public Object validate(Map<String, String> args) {
+      if(args == null) {
+         args = Maps.newHashMap();
+         args.put("url", config.getOrDefault("slack.url", DEFAULT_URL));
+         args.put("channel", config.getOrDefault("slack.channel", DEFAULT_CHANNEL));
+      }
 
-		send("This is a plugin validation call", args);
-		return "Message was sent to slack channel successfully";
-	}
+      send("This is a plugin validation call", args);
+      return "Message was sent to slack channel successfully";
+   }
 
-	@Override
-	public Object handleEvents(List<LogEvent> events, Map<String, String> args) {
-		for(LogEvent event : events) {
-			String message = event.getMessage();
-			send(message, args);
-		}
+   @Override
+   public Object handleEvents(List<LogEvent> events, Map<String, String> args) {
+      for(LogEvent event : events) {
+         String message = event.getMessage();
+         send(message, args);
+      }
 
-		return String.format("relayed %d messages to channel %s" , events.size(), args.get("channel"));
-	}
+      return String.format("relayed %d messages to channel %s" , events.size(), args.get("channel"));
+   }
 
-	private void send(String message, Map<String, String> args) throws Exception{
-		String url = args.getOrDefault("url", config.getProperty("slack.url"));
-		String channel = args.getOrDefault("channel", config.getProperty("slack.channel"));
+   private void send(String message, Map<String, String> args) throws Exception{
+      String url = args.getOrDefault("url", config.getProperty("slack.url"));
+      String channel = args.getOrDefault("channel", config.getProperty("slack.channel"));
 
-		Map<String, Object> payload = Maps.newHashMap();
-		payload.put("text", message);
-		payload.put("channel", channel);
+      Map<String, Object> payload = Maps.newHashMap();
+      payload.put("text", message);
+      payload.put("channel", channel);
 
-		HttpPost post = new HttpPost(url);
-		post.setHeader("Content-Type", "application/json");
+      HttpPost post = new HttpPost(url);
+      post.setHeader("Content-Type", "application/json");
 
-		Gson gson = new GsonBuilder().setPrettyPrinting().create();
-		StringEntity body = new StringEntity(gson.toJson(payload), "UTF-8");
-		body.setContentType("application/json");
-		body.setContentEncoding("UTF-8");
-		post.setEntity(body);
+      Gson gson = new GsonBuilder().setPrettyPrinting().create();
+      StringEntity body = new StringEntity(gson.toJson(payload), "UTF-8");
+      body.setContentType("application/json");
+      body.setContentEncoding("UTF-8");
+      post.setEntity(body);
 
-		HttpResponse hr = client.execute(post);
-		EntityUtils.consumeQuietly(hr.getEntity());
+      HttpResponse hr = client.execute(post);
+      EntityUtils.consumeQuietly(hr.getEntity());
 
-		if(hr.getStatusLine().getStatusCode() != 200)
-			throw new Exception(String.format("failed sending slack notification: %d", hr.getStatusLine().getStatusCode()));
-	}
+      if(hr.getStatusLine().getStatusCode() != 200)
+         throw new Exception(String.format("failed sending slack notification: %d", hr.getStatusLine().getStatusCode()));
+   }
 }
