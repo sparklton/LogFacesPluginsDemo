@@ -2,6 +2,8 @@ package com.moonlit.logfaces.plugins.SlackRelay
 
 import com.moonlit.logfaces.server.core.LogEvent
 import com.moonlit.logfaces.server.core.LogFacesPlugin
+
+import java.beans.EventSetDescriptor
 import java.security.cert.X509Certificate
 
 import javax.net.ssl.SSLContext
@@ -21,6 +23,17 @@ import com.google.common.collect.Maps
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 
+/**
+ * This LogFacesPlugin demonstrates how to relay log events to slack web hook channel.
+ * Plugin will try to use a configuration located in /config.properties.
+ * Expecting to have slack.url and slack.channel properties. 
+ * If not found the default values will be used.
+ * 
+ * Plugin will relay every event it gets from the caller to a specified web hook url and channel.
+ * Note that it uses simplified ssl client implementation to communicate with slack api.
+ * 
+ * For detailed information about slack web hooks visit https://slack.com
+ */
 class SlackAppender implements LogFacesPlugin{
 	private Properties config;
 	private String DEFAULT_URL = "https://hooks.slack.com/services/my/web/hook"; 
@@ -77,9 +90,12 @@ class SlackAppender implements LogFacesPlugin{
 
     @Override
     public Object handleEvents(List<LogEvent> events, Map<String, String> args) {
-        String message = events.get(0).getMessage();
-		send(message, args);
-        return "message was sent to slack channel " + args.get("channel");
+		for(LogEvent event : events) {
+	        String message = event.getMessage();
+			send(message, args);
+		}
+		
+        return String.format("relayed %d messages to channel %s" , events.size(), args.get("channel"));
     }
 
     private void send(String message, Map<String, String> args) throws Exception{
